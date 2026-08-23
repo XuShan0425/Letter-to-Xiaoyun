@@ -1,0 +1,3 @@
+System.Threading.Tasks.VoidTaskResult
+System.Threading.Tasks.VoidTaskResult
+{"id":1,"result":{"result":{"type":"object","subtype":"error","className":"TypeError","description":"TypeError: window.scenes is not iterable\n    at <anonymous>:1:27","objectId":"-4783016413126231142.13.1"},"exceptionDetails":{"exceptionId":1,"text":"Uncaught","lineNumber":0,"columnNumber":26,"scriptId":"71","exception":{"type":"object","subtype":"error","className":"TypeError","description":"TypeError: window.scenes is not iterable\n    at <anonymous>:1:27","objectId":"-4783016413126231142.13.2"}}}}
