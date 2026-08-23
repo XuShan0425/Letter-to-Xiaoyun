@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>给小云的一封信</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='3' fill='%238b7cff'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   给小云的一封信
+   单文件网页：无后端、无外部依赖
+   可选：把 music.mp3 放在本文件旁边，右下角按钮即可播放
+   ============================================================ */
+
+/* ---------- 基础变量 ---------- */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b1020;            /* 深蓝黑 */
+  --bg2:#17152b;           /* 暗紫   */
+  --violet:#8b7cff;        /* 温柔紫 */
+  --white:#f5f1ff;         /* 暖白   */
+  --pink:#e9b8d5;          /* 淡粉   */
+  --gold:#f3d49b;          /* 暖金   */
+  --t-strong:rgba(245,241,255,.94);
+  --t-dim:rgba(245,241,255,.64);
+  --t-faint:rgba(245,241,255,.36);
+  --serif:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","Noto Serif SC",serif;
+  --hand:"Kaiti SC","STKaiti","KaiTi","楷体",serif;
+}
+html{scroll-behavior:smooth}
+html,body{overflow-x:hidden}
+body{
+  background:var(--bg);
+  color:var(--t-strong);
+  font-family:var(--serif);
+  font-size:17px;
+  line-height:2.05;
+  letter-spacing:.06em;
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+}
+::selection{background:rgba(139,124,255,.35)}
+button{-webkit-tap-highlight-color:transparent}
+
+/* ---------- 背景：随章节切换的“心情”渐变层（3 秒交叉淡化） ---------- */
+.mood{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 3s ease}
+.mood-night{background:
+  radial-gradient(120% 90% at 50% 115%, rgba(23,21,43,.95), transparent 60%),
+  radial-gradient(90% 60% at 80% -10%, rgba(139,124,255,.07), transparent 60%),
+  linear-gradient(180deg,#0b1020 0%,#0c1126 50%,#0b1020 100%)}
+.mood-warm{background:   /* 第二章三句重点：光慢慢变暖 */
+  radial-gradient(80% 55% at 50% 62%, rgba(243,210,155,.12), transparent 65%),
+  radial-gradient(120% 90% at 50% 115%, rgba(28,23,44,.95), transparent 60%),
+  linear-gradient(180deg,#0b1020 0%,#111026 55%,#0d1020 100%)}
+.mood-starlight{background:  /* 第五章：微弱星光 */
+  radial-gradient(100% 70% at 50% 0%, rgba(139,124,255,.10), transparent 60%),
+  radial-gradient(120% 90% at 50% 115%, rgba(23,21,43,.9), transparent 60%),
+  linear-gradient(180deg,#0c1128 0%,#0d1230 55%,#0b1020 100%)}
+.mood-quiet{background:linear-gradient(180deg,#090d1a 0%,#0a0e1e 100%)}   /* 倾诉段：几乎完全安静 */
+.mood-deep{background:    /* 终章：非常深的蓝 */
+  radial-gradient(70% 45% at 50% 55%, rgba(139,124,255,.05), transparent 70%),
+  linear-gradient(180deg,#070b18 0%,#090e20 60%,#070b18 100%)}
+body[data-mood="night"] .mood-night,
+body[data-mood="warm"] .mood-warm,
+body[data-mood="starlight"] .mood-starlight,
+body[data-mood="quiet"] .mood-quiet,
+body[data-mood="deep"] .mood-deep{opacity:1}
+
+/* ---------- 背景：缓慢漂浮的模糊光晕（呼吸感） ---------- */
+.halo{position:fixed;z-index:0;border-radius:50%;pointer-events:none;filter:blur(90px);transition:opacity 3s ease}
+.halo-a{width:62vmax;height:62vmax;top:-24vmax;left:-18vmax;background:radial-gradient(circle,rgba(139,124,255,.13),transparent 62%);animation:driftA 70s ease-in-out infinite alternate}
+.halo-b{width:55vmax;height:55vmax;bottom:-22vmax;right:-16vmax;background:radial-gradient(circle,rgba(233,184,213,.09),transparent 62%);animation:driftB 85s ease-in-out infinite alternate}
+.halo-c{width:38vmax;height:38vmax;top:38%;left:55%;background:radial-gradient(circle,rgba(243,210,155,.06),transparent 60%);animation:breathe 16s ease-in-out infinite}
+@keyframes driftA{from{transform:translate3d(0,0,0)}to{transform:translate3d(9vmax,7vmax,0)}}
+@keyframes driftB{from{transform:translate3d(0,0,0)}to{transform:translate3d(-8vmax,-6vmax,0)}}
+@keyframes breathe{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.9;transform:scale(1.12)}}
+body[data-mood="quiet"] .halo,body[data-mood="deep"] .halo{opacity:.22}
+
+/* ---------- 背景：星尘画布 & 颗粒 ---------- */
+#dust{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.6;transition:opacity 3s ease}
+body[data-mood="quiet"] #dust{opacity:.15}
+body[data-mood="deep"] #dust{opacity:.35}
+body[data-mood="starlight"] #dust{opacity:.95}
+body[data-mood="warm"] #dust{opacity:.7}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+
+/* ---------- 布局与文字 ---------- */
+main{position:relative;z-index:2}
+.screen{min-height:100vh;min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:12vh 26px;text-align:center}
+.block{max-width:700px;width:100%;margin:0 auto;padding:0 26px}
+.gap-s{height:12vh}.gap-m{height:22vh}.gap-l{height:36vh}
+.dim{color:var(--t-dim)}
+.faint{color:var(--t-faint)}
+.small{font-size:14px;letter-spacing:.1em}
+.tiny{font-size:12px;letter-spacing:.3em;color:var(--t-faint)}
+.center{text-align:center}
+.glow-v{text-shadow:0 0 26px rgba(139,124,255,.4)}
+
+/* 文字进入：opacity + 轻微位移 + 去模糊（1.15s，支持 --d 错落延迟） */
+.reveal{opacity:0;transform:translateY(20px);filter:blur(6px);
+  transition:opacity 1.15s ease var(--d,0s),transform 1.15s ease var(--d,0s),filter 1.15s ease var(--d,0s)}
+.reveal.in{opacity:1;transform:translateY(0);filter:blur(0)}
+
+/* 章节标题：不正式，居中，宽字距 */
+.ch-title{font-size:clamp(21px,5.2vw,27px);letter-spacing:.34em;font-weight:500;color:rgba(245,241,255,.85)}
+
+/* ---------- 开场 ---------- */
+.first-light{width:7px;height:7px;border-radius:50%;background:var(--white);opacity:0;transform:scale(.4);
+  transition:opacity 2.6s ease,transform 2.6s ease,box-shadow 2.6s ease}
+.first-light.on{opacity:1;transform:scale(1);
+  box-shadow:0 0 22px 7px rgba(245,241,255,.5),0 0 70px 30px rgba(139,124,255,.28);
+  animation:pulse 6s ease-in-out 2.8s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 22px 7px rgba(245,241,255,.5),0 0 70px 30px rgba(139,124,255,.28)}
+  50%{box-shadow:0 0 26px 9px rgba(245,241,255,.6),0 0 88px 38px rgba(139,124,255,.36)}}
+.open-wrap{display:flex;flex-direction:column;align-items:center;gap:26px;margin-top:48px}
+.open-line{opacity:0;transform:translateY(14px);filter:blur(5px);transition:opacity 1.6s ease,transform 1.6s ease,filter 1.6s ease}
+.open-line.in{opacity:1;transform:none;filter:blur(0)}
+#ol1{font-size:clamp(26px,7vw,34px);letter-spacing:.3em}
+#ol2{color:var(--t-dim);font-size:clamp(16px,4.2vw,19px)}
+#ol3{color:var(--t-faint);font-size:clamp(14px,3.6vw,16px)}
+.scroll-hint{position:absolute;bottom:9vh;left:50%;transform:translateX(-50%);opacity:0;transition:opacity 1.6s;
+  color:var(--t-faint);font-size:18px;cursor:pointer;background:none;border:none;padding:12px}
+.scroll-hint.in{opacity:.75;animation:hintFloat 2.8s ease-in-out 1.6s infinite}
+@keyframes hintFloat{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,7px)}}
+
+/* ---------- 第一章：引用与害羞的“笨蛋。” ---------- */
+.say{font-size:14px;color:var(--t-faint);letter-spacing:.2em;text-align:center}
+.quote{margin:26px auto 0;max-width:520px;padding:14px 22px;border-left:2px solid rgba(139,124,255,.45);
+  background:linear-gradient(90deg,rgba(139,124,255,.07),transparent 70%);
+  color:var(--t-dim);font-size:clamp(16px,4.3vw,19px);text-align:left;border-radius:0 12px 12px 0}
+.shy.in{animation:shyDrop 1.1s cubic-bezier(.3,1.4,.5,1) var(--d,0s) both}
+@keyframes shyDrop{0%{opacity:0;transform:translateY(-8px);filter:blur(4px)}
+  55%{opacity:1;transform:translateY(3px);filter:blur(0)}
+  100%{opacity:1;transform:translateY(0);filter:blur(0)}}
+
+/* ---------- 第二章：三句重点 ---------- */
+.trio-line{font-size:clamp(23px,6.2vw,32px);letter-spacing:.14em;line-height:1.9}
+.trio-key{color:var(--gold);text-shadow:0 0 30px rgba(243,210,155,.35);font-size:clamp(25px,6.8vw,36px)}
+.whisper{color:var(--pink);opacity:.85;font-size:15px}
+
+/* ---------- 第三章：标签风暴（轻微的故障感，不走科技朋克） ---------- */
+#stormBox{position:relative;height:88vh;height:88svh;overflow:hidden}
+#stormBox::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(245,241,255,.5) 3px 4px)}
+.tag{position:absolute;white-space:nowrap;color:var(--t-faint);letter-spacing:.28em;font-size:15px;
+  opacity:0;filter:blur(.5px);animation:tagLife 2.7s ease forwards;will-change:opacity,transform}
+.tag.v{color:rgba(139,124,255,.75)}
+.tag.j{animation:tagLife 2.7s ease forwards,tagJitter .5s steps(2) infinite}
+@keyframes tagLife{0%{opacity:0;transform:translateY(10px) scale(.95)}16%{opacity:.9}68%{opacity:.55}100%{opacity:0;transform:translateY(-12px) scale(1.02)}}
+@keyframes tagJitter{0%{margin-left:0}50%{margin-left:1px}100%{margin-left:-1px}}
+.storm-answer{position:absolute;inset:0;display:grid;place-items:center;padding:0 30px;
+  font-size:clamp(20px,5.4vw,27px);letter-spacing:.16em;
+  opacity:0;transform:translateY(16px);filter:blur(6px);transition:opacity 1.6s ease,transform 1.6s ease,filter 1.6s ease}
+.storm-answer.in{opacity:1;transform:none;filter:blur(0)}
+
+/* ---------- 第四章：纸张、横线、铅笔下划线 ---------- */
+.paper{position:relative;max-width:640px;margin:0 auto;padding:52px 30px 58px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(245,241,255,.028),rgba(245,241,255,.012));
+  border:1px solid rgba(245,241,255,.06)}
+.paper::before{content:"";position:absolute;inset:14px 10px;pointer-events:none;border-radius:8px;
+  background:repeating-linear-gradient(180deg,transparent 0 33px,rgba(245,241,255,.06) 33px 34px)}
+.words{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:22px 30px}
+.w{font-family:var(--hand);font-size:clamp(19px,5vw,24px);color:rgba(245,241,255,.82);position:relative;padding:2px 6px}
+.w::after{content:"";position:absolute;left:4%;bottom:-2px;width:92%;height:2px;border-radius:2px;
+  background:rgba(139,124,255,.5);transform:rotate(-1.6deg) scaleX(0);transform-origin:left;transition:transform 1.2s ease .9s}
+.w.in::after{transform:rotate(-1.6deg) scaleX(1)}
+.w:nth-child(2n)::after{background:rgba(233,184,213,.45)}
+.w:nth-child(3n){transform:rotate(-2deg)}
+.w:nth-child(4n){transform:rotate(1.6deg)}
+/* “成绩 / 排名 / 别人眼里的厉害”出现后慢慢变淡 */
+.will-dim{transition:opacity 2.4s ease,filter 2.4s ease}
+.will-dim.dimmed{opacity:.2;filter:blur(1.5px)}
+.result-words span{display:inline-block;margin:0 14px}
+
+/* ---------- 第五章：杂鱼轻晃 & 两个光点 ---------- */
+.big-line{font-size:clamp(27px,7.4vw,40px);letter-spacing:.14em;text-shadow:0 0 34px rgba(139,124,255,.45)}
+.wobble{display:inline-block}
+.reveal.in .wobble{animation:wob 1s ease .9s}
+@keyframes wob{0%,100%{transform:rotate(0)}25%{transform:rotate(2.4deg)}55%{transform:rotate(-2deg)}80%{transform:rotate(1deg)}}
+.duo{position:relative;height:150px;width:100%;max-width:520px;margin:0 auto}
+.duo .d{position:absolute;top:50%;left:50%;width:9px;height:9px;border-radius:50%;background:var(--white);
+  box-shadow:0 0 16px 4px rgba(139,124,255,.6);opacity:0;will-change:transform}
+.duo .da{transform:translate(calc(-50% - 34vw),-50%)}
+.duo .db{transform:translate(calc(-50% + 34vw),-50%)}
+.duo.in .d{opacity:1;transition:transform 3.6s cubic-bezier(.3,.65,.3,1),opacity 1.4s ease;
+  animation:rest 5s ease-in-out 3.8s infinite}
+.duo.in .da{transform:translate(calc(-50% - 14px),-50%)}
+.duo.in .db{transform:translate(calc(-50% + 14px),-50%)}
+@keyframes rest{0%,100%{box-shadow:0 0 16px 4px rgba(139,124,255,.6)}50%{box-shadow:0 0 22px 7px rgba(139,124,255,.8)}}
+
+/* ---------- 终章：愿望 ---------- */
+.wish{font-size:clamp(26px,6.8vw,38px);letter-spacing:.12em;line-height:2;color:var(--white);
+  text-shadow:0 0 36px rgba(243,210,155,.3)}
+.wish-sign{font-size:12px;letter-spacing:.4em;color:var(--t-faint)}
+
+/* ---------- 结尾互动 ---------- */
+.choices{display:flex;flex-direction:column;gap:18px;align-items:center;margin-top:44px;transition:opacity 1.1s ease}
+@media(min-width:560px){.choices{flex-direction:row;justify-content:center;gap:26px}}
+.choice-btn{min-width:200px;min-height:54px;padding:15px 30px;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(139,124,255,.4);background:rgba(23,21,43,.55);color:var(--t-strong);
+  font-family:var(--serif);font-size:16px;letter-spacing:.14em;
+  transition:transform .3s ease,box-shadow .6s ease,border-color .6s ease}
+.choice-btn:hover{border-color:rgba(139,124,255,.75);box-shadow:0 0 24px rgba(139,124,255,.18)}
+.choice-btn:active{transform:scale(.97)}
+.choices.gone{opacity:0;pointer-events:none}
+.answer{display:none;flex-direction:column;align-items:center;gap:8px;width:100%}
+.answer.show{display:flex}
+.again{margin-top:56px;background:none;border:none;color:var(--t-faint);font-size:12px;letter-spacing:.3em;
+  cursor:pointer;font-family:var(--serif);opacity:0;transition:opacity 1.5s;padding:12px}
+.again.in{opacity:.8}
+/* 结尾 B：两个光点合成一颗很小的星星 */
+.duo.merge .da,.duo.merge .db{transition:transform 1.6s ease,opacity 1.6s ease;transform:translate(-50%,-50%) scale(.2);opacity:0}
+.starlet{position:absolute;left:50%;top:50%;width:7px;height:7px;border-radius:50%;background:var(--white);
+  opacity:0;transform:translate(-50%,-50%) scale(.3);
+  box-shadow:0 0 18px 6px rgba(245,241,255,.55),0 0 60px 24px rgba(139,124,255,.3)}
+.starlet::before,.starlet::after{content:"";position:absolute;left:50%;top:50%;background:linear-gradient(90deg,transparent,rgba(245,241,255,.85),transparent)}
+.starlet::before{width:26px;height:1px;transform:translate(-50%,-50%)}
+.starlet::after{width:1px;height:26px;transform:translate(-50%,-50%)}
+.duo.merge .starlet{opacity:1;transform:translate(-50%,-50%) scale(1);
+  transition:opacity 1.4s ease 1.2s,transform 1.4s ease 1.2s;animation:pulse 7s ease-in-out 3s infinite}
+
+/* ---------- 底部进度 & 音乐按钮 ---------- */
+#progress{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(13px + env(safe-area-inset-bottom));z-index:20;
+  display:flex;flex-direction:column;align-items:center;gap:9px;opacity:0;transition:opacity 1.4s;pointer-events:none}
+body.started #progress{opacity:1;pointer-events:auto}
+.p-label{font-size:11px;letter-spacing:.34em;color:var(--t-faint);min-height:15px}
+.p-dots{display:flex;gap:6px}
+.p-dot{width:22px;height:22px;background:none;border:none;cursor:pointer;position:relative;padding:0}
+.p-dot::after{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;
+  background:rgba(245,241,255,.25);transform:translate(-50%,-50%);transition:all .8s ease}
+.p-dot.active::after{background:var(--violet);box-shadow:0 0 9px rgba(139,124,255,.9);width:6px;height:6px}
+#musicBtn{position:fixed;right:15px;bottom:calc(15px + env(safe-area-inset-bottom));z-index:20;
+  width:44px;height:44px;border-radius:50%;border:1px solid rgba(245,241,255,.15);cursor:pointer;
+  background:rgba(11,16,32,.55);color:rgba(245,241,255,.55);font-size:16px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:all .8s ease}
+#musicBtn.playing{color:var(--violet);border-color:rgba(139,124,255,.55);box-shadow:0 0 14px rgba(139,124,255,.3)}
+#musicTip{position:fixed;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:20;max-width:230px;
+  background:rgba(23,21,43,.92);border:1px solid rgba(139,124,255,.25);border-radius:10px;
+  color:var(--t-dim);font-size:12px;letter-spacing:.06em;line-height:1.8;padding:10px 14px;
+  opacity:0;transform:translateY(6px);transition:opacity .8s ease,transform .8s ease;pointer-events:none}
+#musicTip.show{opacity:1;transform:none}
+
+/* ---------- 响应式 & 动效偏好 ---------- */
+@media(min-width:720px){body{font-size:18.5px}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.25s!important}
+  html{scroll-behavior:auto}
+}
+
+
+/* ============================================================
+   移动端沉浸升级：呼吸节奏、细腻文字、准备层与触摸交互
+   原有样式保留；以下为增量增强层。
+   ============================================================ */
+:root{
+  --ease-soft:cubic-bezier(.22,.72,.28,1);
+  --ease-cinematic:cubic-bezier(.18,.72,.22,1);
+  --ease-enter:cubic-bezier(.2,.68,.25,1);
+  --motion-fast:480ms;
+  --motion-normal:900ms;
+  --motion-slow:1400ms;
+  --motion-cinematic:2000ms;
+  --chapter-pause:700ms;
+  --safe-x:clamp(26px,7vw,32px);
+}
+html{scroll-behavior:auto;overscroll-behavior-y:none}
+body{font-size:clamp(16px,4.25vw,18px);line-height:2.02;letter-spacing:.045em;min-width:0}
+body.preparing{overflow:hidden}
+main{opacity:0;transition:opacity 1.8s var(--ease-cinematic);will-change:opacity}
+body.started main{opacity:1}
+.mood{transition:opacity 3.6s var(--ease-cinematic)}
+.halo{filter:blur(86px);will-change:transform,opacity}
+#dust{will-change:opacity}
+.screen{min-height:clamp(560px,100svh,920px);padding:clamp(92px,15svh,148px) var(--safe-x);padding-top:max(clamp(92px,15svh,148px),calc(58px + env(safe-area-inset-top)));padding-bottom:max(clamp(92px,15svh,148px),calc(72px + env(safe-area-inset-bottom)))}
+.block{width:min(100%,348px);padding:0;margin-inline:auto}
+.chapter{position:relative;isolation:isolate}
+.chapter > .screen{position:relative}
+.gap-s{height:clamp(44px,9vh,86px)}
+.gap-m{height:clamp(76px,15vh,142px)}
+.gap-l{height:clamp(120px,23vh,220px)}
+.small{font-size:13px;line-height:1.95}
+.tiny{font-size:11px;line-height:1.8}
+.quote{max-width:340px;margin-top:22px;padding:13px 18px;font-size:clamp(15px,4.1vw,18px);line-height:2;border-radius:0 10px 10px 0}
+.ch-title{font-size:clamp(20px,5.5vw,25px);letter-spacing:.38em;line-height:1.8;opacity:.86}
+.trio-line{font-size:clamp(22px,6vw,30px);line-height:1.82;letter-spacing:.12em}
+.wish{font-size:clamp(24px,6.8vw,34px);line-height:1.9;letter-spacing:.1em;max-width:340px}
+.whisper{font-size:14px;line-height:1.95}
+.paper{width:min(100%,348px);padding:40px 22px 46px}
+#stormBox{height:clamp(500px,78svh,700px);width:min(100%,348px)}
+
+/* 文字颗粒：只对 data-reveal 明确标记/自动识别的短句拆分 */
+.reveal{transform:translateY(14px);filter:blur(5px);transition:opacity var(--motion-normal) var(--ease-enter) var(--d,0s),transform var(--motion-normal) var(--ease-enter) var(--d,0s),filter var(--motion-normal) var(--ease-enter) var(--d,0s)}
+.reveal.has-parts{opacity:1;transform:none;filter:none;transition:none}
+.reveal-part{display:inline-block;opacity:0;transform:translate3d(0,10px,0) scale(.992);filter:blur(4px);will-change:opacity,transform,filter;transition:opacity 760ms var(--ease-enter) var(--part-delay,0ms),transform 760ms var(--ease-enter) var(--part-delay,0ms),filter 760ms var(--ease-enter) var(--part-delay,0ms)}
+.reveal.in .reveal-part{opacity:1;transform:none;filter:blur(0)}
+.reveal[data-reveal="char"] .reveal-part{margin-inline:.035em}
+.reveal[data-reveal="phrase"] .reveal-part{margin-inline:.07em}
+.reveal[data-reveal="line"] .reveal-part{display:block;margin:0 0 .18em}
+.reveal[data-reveal="line"] .reveal-part:last-child{margin-bottom:0}
+.chapter-last{transition:opacity 1.5s var(--ease-cinematic),text-shadow 1.5s var(--ease-cinematic),letter-spacing 1.5s var(--ease-cinematic)}
+.chapter-last.in{animation:chapterBreath 2.8s var(--ease-cinematic) 760ms both}
+@keyframes chapterBreath{0%{opacity:.74;letter-spacing:.055em;text-shadow:none}45%{opacity:1}100%{opacity:.9;letter-spacing:.045em;text-shadow:0 0 22px rgba(139,124,255,.12)}}
+.chapter-end-space{height:clamp(92px,16vh,150px);position:relative;display:grid;place-items:center;opacity:.42}
+.chapter-end-space::after{content:"";width:3px;height:3px;border-radius:50%;background:rgba(245,241,255,.44);box-shadow:0 0 16px 4px rgba(139,124,255,.18);opacity:0;transition:opacity 1.8s var(--ease-cinematic),transform 1.8s var(--ease-cinematic);transform:scale(.6)}
+.chapter-end-space.near::after{opacity:1;transform:scale(1)}
+.chapter-end-space::before{content:"";position:absolute;left:50%;top:50%;width:1px;height:42px;background:linear-gradient(180deg,transparent,rgba(245,241,255,.13),transparent);transform:translate(-50%,-50%);opacity:0;transition:opacity 1.8s var(--ease-cinematic)}
+.chapter-end-space.near::before{opacity:1}
+
+/* 结尾选择卡片：克制的纸片感，不使用胶囊按钮 */
+#ending{min-height:clamp(620px,106svh,900px)}
+.choices{width:min(100%,320px);gap:12px;margin-top:clamp(34px,7vh,64px);transition:opacity 700ms var(--ease-cinematic),transform 700ms var(--ease-cinematic),filter 700ms var(--ease-cinematic)}
+.choice-btn{opacity:0;transform:translateY(10px);filter:blur(3px);width:100%;min-width:0;min-height:68px;padding:18px 22px;border-radius:14px;cursor:pointer;position:relative;overflow:hidden;border:1px solid rgba(245,241,255,.12);background:linear-gradient(135deg,rgba(23,21,43,.56),rgba(11,16,32,.34));color:var(--t-strong);font-family:var(--serif);font-size:16px;letter-spacing:.14em;box-shadow:inset 0 1px 0 rgba(245,241,255,.035);transition:transform 220ms var(--ease-soft),background 500ms var(--ease-soft),border-color 500ms var(--ease-soft),box-shadow 700ms var(--ease-soft)}
+.choices.in .choice-btn{opacity:1;transform:none;filter:blur(0);transition-delay:120ms}.choices.in .choice-btn:nth-child(2){transition-delay:370ms}.choices.in .choice-btn:active{transform:scale(.985)}
+.choice-btn::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 16%,rgba(245,241,255,.08) 50%,transparent 84%);transform:translateX(-120%);transition:transform 900ms var(--ease-cinematic)}
+.choice-btn:focus-visible{outline:1px solid rgba(233,184,213,.65);outline-offset:4px}
+.choice-btn:active{transform:scale(.985);border-color:rgba(233,184,213,.5);background:rgba(35,28,54,.7);box-shadow:0 0 24px rgba(139,124,255,.12)}
+.choice-btn:active::after{transform:translateX(120%)}
+.choices.gone{opacity:0;transform:translateY(16px);filter:blur(3px);pointer-events:none}
+.answer{gap:8px}
+.again{min-height:44px;margin-top:48px}
+
+/* 进度导航只在活动/滚动时轻轻出现 */
+#progress{bottom:calc(10px + env(safe-area-inset-bottom));gap:6px;opacity:0;transition:opacity 900ms var(--ease-soft),transform 900ms var(--ease-soft);transform:translate3d(-50%,6px,0);pointer-events:none}
+body.started #progress{opacity:.72;transform:translate3d(-50%,0,0);pointer-events:auto}
+body.started.progress-quiet #progress{opacity:0;transform:translate3d(-50%,6px,0);pointer-events:none}
+.p-label{font-size:10px;letter-spacing:.28em;min-height:14px}
+.p-dots{gap:2px}
+.p-dot{width:20px;height:20px}
+.p-dot::after{width:4px;height:4px}
+#musicBtn{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));width:44px;height:44px;background:rgba(11,16,32,.32);font-size:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:color 700ms var(--ease-soft),border-color 700ms var(--ease-soft),box-shadow 900ms var(--ease-soft),transform 220ms var(--ease-soft)}
+#musicBtn:active{transform:scale(.96)}
+#musicBtn.playing{animation:musicBreath 3.8s ease-in-out infinite}
+@keyframes musicBreath{0%,100%{box-shadow:0 0 0 rgba(139,124,255,0)}50%{box-shadow:0 0 18px rgba(139,124,255,.2)}}
+#musicTip{right:12px;bottom:calc(66px + env(safe-area-inset-bottom));font-size:11px;max-width:min(230px,calc(100vw - 24px))}
+
+/* 准备层：不是 spinner，而是四个真实阶段的安静状态 */
+#prepare{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(28px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(32px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));background:rgba(7,11,24,.985);transition:opacity 1200ms var(--ease-cinematic),visibility 1200ms;}
+#prepare::before{content:"";position:absolute;width:62vmin;height:62vmin;border-radius:50%;background:radial-gradient(circle,rgba(139,124,255,.1),transparent 67%);filter:blur(18px);animation:prepareGlow 8s ease-in-out infinite}
+#prepare.ready{opacity:0;visibility:hidden;pointer-events:none}
+.prepare-inner{position:relative;width:min(100%,300px);text-align:center;display:flex;flex-direction:column;align-items:center}
+.prepare-mark{width:5px;height:5px;border-radius:50%;background:var(--white);box-shadow:0 0 18px 5px rgba(139,124,255,.34);animation:prepareMark 4s ease-in-out infinite}
+.prepare-kicker{margin-top:28px;color:var(--t-dim);font-size:14px;letter-spacing:.2em}
+.prepare-progress{display:flex;align-items:center;gap:14px;width:100%;margin-top:30px;color:var(--t-faint)}
+.prepare-progress strong{font:400 12px/1 var(--serif);letter-spacing:.12em;width:34px;text-align:right}
+.prepare-line{height:1px;flex:1;background:rgba(245,241,255,.12);overflow:hidden}
+.prepare-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,rgba(139,124,255,.5),rgba(233,184,213,.7));transition:width 700ms var(--ease-soft)}
+.prepare-checks{list-style:none;width:100%;margin-top:32px;display:grid;gap:8px;text-align:left}
+.prepare-checks li{display:flex;justify-content:space-between;gap:16px;color:rgba(245,241,255,.38);font-size:12px;letter-spacing:.16em;transition:color 600ms var(--ease-soft)}
+.prepare-checks b{font-weight:400;letter-spacing:.1em;color:rgba(245,241,255,.25)}
+.prepare-checks li.done{color:var(--t-dim)}
+.prepare-checks li.done b{color:var(--pink)}
+.prepare-checks li.optional b{color:var(--t-faint)}
+#prepareSkip{min-height:44px;margin-top:28px;padding:10px 16px;border:0;background:none;color:var(--t-faint);font:400 11px var(--serif);letter-spacing:.24em;opacity:0;pointer-events:none;transition:opacity 700ms var(--ease-soft)}
+#prepareSkip.visible{opacity:.85;pointer-events:auto}
+@keyframes prepareGlow{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes prepareMark{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+
+@media (max-width:374px){.screen{padding-inline:24px}.block,#stormBox,.paper{width:min(100%,320px)}.wish{font-size:24px}.choice-btn{min-height:64px}}
+@media(prefers-reduced-motion:reduce){.chapter-last.in{animation:none}.prepare-mark,#prepare::before{animation:none}.reveal-part{transition-duration:.25s!important}}
+
+
+/* ---------- 特别文字效果 ---------- */
+.open-line:first-child{font-family:var(--hand);font-size:clamp(23px,7vw,34px);letter-spacing:.14em}
+.chapter-aside{display:block;margin-top:10px;color:var(--pink);font-family:var(--hand);font-size:.58em;letter-spacing:.22em;opacity:0;transform:translateY(8px);filter:blur(5px);transition:opacity 900ms var(--ease-enter) 180ms,transform 900ms var(--ease-enter) 180ms,filter 900ms var(--ease-enter) 180ms}
+.ch-title.in .chapter-aside{opacity:.82;transform:none;filter:none}
+.highlight-line{position:relative;color:#fff;text-shadow:0 0 10px rgba(245,241,255,.55),0 0 34px rgba(139,124,255,.72),0 0 76px rgba(233,184,213,.34);isolation:isolate}
+.highlight-line::before{content:"";position:absolute;z-index:-1;inset:-.7em -1.3em;border-radius:50%;background:radial-gradient(ellipse,rgba(139,124,255,.2),transparent 68%);opacity:0;transform:scale(.72);pointer-events:none}
+.highlight-line.in::before{animation:highlightBloom 2.2s var(--ease-cinematic) .35s both}
+.highlight-line.in .reveal-part{animation:highlightWord 1.1s var(--ease-enter) calc(var(--part-delay,0ms) + 120ms) both}
+.love-line{color:var(--pink);text-shadow:0 0 14px rgba(233,184,213,.6),0 0 42px rgba(139,124,255,.38)}
+.love-line.in .reveal-part{animation:lovePop 1.2s var(--ease-enter) calc(var(--part-delay,0ms) + 100ms) both}
+@keyframes highlightBloom{0%{opacity:0;transform:scale(.72)}35%{opacity:1;transform:scale(1.08)}100%{opacity:.72;transform:scale(1)}}
+@keyframes highlightWord{0%{text-shadow:0 0 0 rgba(245,241,255,0);filter:brightness(.7)}45%{text-shadow:0 0 22px rgba(245,241,255,.95),0 0 54px rgba(139,124,255,.85);filter:brightness(1.45)}100%{text-shadow:inherit;filter:brightness(1)}}
+@keyframes lovePop{0%{opacity:0;transform:translateY(12px) scale(.82);filter:blur(5px)}55%{opacity:1;transform:translateY(-3px) scale(1.04);filter:blur(0)}100%{opacity:1;transform:none}}
+
+/* ============================================================
+   第二轮：电影式 Scene 阅读舞台
+   保留原章节 / 正文 DOM，仅把现有 .screen 运行时编排为 Scene。
+   ============================================================ */
+body.scene-mode{overflow:hidden;touch-action:none}
+body.scene-mode main{position:fixed;inset:0;width:100%;height:100svh;overflow:hidden;opacity:1;isolation:isolate}
+body.scene-mode main > #opening.scene,
+body.scene-mode main > .chapter{position:absolute;inset:0;width:100%;height:100%;margin:0;display:none;overflow:hidden}
+body.scene-mode main > #opening.scene{display:flex}
+body.scene-mode main > .chapter.chapter-active{display:block}
+/* Scene 舞台固定定位：覆盖滚动版 .chapter > .screen 的相对定位，避免后续页被排到视口外 */
+body.scene-mode main > .chapter > .scene{position:absolute}
+.scene{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;justify-content:center;align-items:center;width:100%;height:100%;min-height:100%;padding:max(78px,calc(54px + env(safe-area-inset-top))) var(--safe-x) max(86px,calc(62px + env(safe-area-inset-bottom)));text-align:center;visibility:hidden;pointer-events:none;opacity:0;transform:translate3d(0,54px,0);filter:blur(5px);transition:opacity 920ms var(--ease-cinematic),transform 1080ms var(--ease-cinematic),filter 1080ms var(--ease-cinematic);will-change:opacity,transform,filter}
+.scene.position-high{justify-content:flex-start;padding-top:max(18svh,calc(96px + env(safe-area-inset-top)))}
+.scene.position-low{justify-content:flex-end;padding-bottom:max(18svh,calc(112px + env(safe-area-inset-bottom)))}
+.scene.scene-live{visibility:visible}
+.scene.scene-from-above{transform:translate3d(0,-54px,0)}
+.scene.scene-from-below{transform:translate3d(0,54px,0)}
+.scene.scene-current{z-index:2;visibility:visible;opacity:1;transform:translate3d(0,0,0);filter:blur(0);pointer-events:auto}
+.scene.scene-exit-next,.scene.scene-exit-prev{z-index:3;visibility:visible;pointer-events:none;opacity:0;filter:blur(3px);transition-duration:780ms}
+.scene.scene-exit-next{transform:translate3d(0,-64px,0)}
+.scene.scene-exit-prev{transform:translate3d(0,64px,0)}
+.scene.scene-current .scene-piece{will-change:opacity,transform,filter}
+.scene.scene-exit-next .scene-piece.in{opacity:0;transform:translate3d(0,-48px,0);filter:blur(3px);transition:opacity 650ms var(--ease-cinematic),transform 780ms var(--ease-cinematic),filter 780ms var(--ease-cinematic)}
+.scene.scene-exit-prev .scene-piece.in{opacity:0;transform:translate3d(0,48px,0);filter:blur(3px);transition:opacity 650ms var(--ease-cinematic),transform 780ms var(--ease-cinematic),filter 780ms var(--ease-cinematic)}
+.scene .block{width:min(100%,348px);max-width:348px;padding:0}
+/* Scene 模式使用自己的统一时序：清除正文原有 --d / animation-delay，避免
+   原滚动版的长延迟叠加到翻页动画上，造成页面长时间空白。 */
+body.scene-mode .scene .scene-piece{--d:0s!important}
+body.scene-mode .scene .scene-piece.in{animation-delay:0s!important}
+/* 用户点按“完成本页”时，所有剩余文字必须立刻可见，不能继续等待旧版延迟。 */
+body.scene-mode .scene.scene-fast-forward .scene-piece,
+body.scene-mode .scene.scene-fast-forward .reveal-part{transition-delay:0ms!important}
+/* 返回已经看过的页面时，不重新播放会把 opacity 留在 0 的旧动画；文字保持最终状态。 */
+body.scene-mode .scene.scene-restored .scene-piece,
+body.scene-mode .scene.scene-restored .scene-piece *{animation:none!important}
+.scene .gap-s{height:clamp(32px,6vh,66px)}
+.scene .gap-m{height:clamp(50px,10vh,100px)}
+.scene .gap-l{height:clamp(82px,16vh,160px)}
+.scene #stormBox{height:min(70svh,580px)}
+.scene#stormBox{padding:0;width:100%;height:100%;min-height:100%;display:block;overflow:hidden}
+.scene #ending{min-height:100%;height:100%}
+#sceneHint{position:fixed;left:50%;bottom:max(34px,calc(28px + env(safe-area-inset-bottom)));z-index:25;transform:translate(-50%,8px);opacity:0;color:var(--t-faint);font-size:11px;letter-spacing:.25em;pointer-events:none;transition:opacity 900ms var(--ease-soft),transform 900ms var(--ease-soft)}
+body.scene-mode.scene-hint-visible #sceneHint{opacity:.78;transform:translate(-50%,0)}
+@media(max-width:374px){.scene{padding-inline:24px}.scene .block{max-width:320px}.scene.position-high{padding-top:max(15svh,calc(86px + env(safe-area-inset-top)))}}
+@media(prefers-reduced-motion:reduce){.scene{transition-duration:.25s!important}.scene.scene-exit-next,.scene.scene-exit-prev{transition-duration:.2s!important}.scene.scene-exit-next .scene-piece.in,.scene.scene-exit-prev .scene-piece.in{transition-duration:.2s!important}}
+</style>
+<noscript><style>
+  .reveal,.open-line,.storm-answer{opacity:1!important;transform:none!important;filter:none!important}
+  .scroll-hint,#progress{display:none}
+</style></noscript>
+</head>
+<body class="preparing" data-mood="night">
+
+<!-- 准备层：真实初始化页面、动画、背景与可选音乐资源 -->
+<div id="prepare" role="status" aria-live="polite">
+  <div class="prepare-inner">
+    <span class="prepare-mark" aria-hidden="true"></span>
+    <p class="prepare-kicker">正在准备这封信</p>
+    <div class="prepare-progress"><strong id="preparePercent">0%</strong><span class="prepare-line"><i id="prepareBar"></i></span></div>
+    <ul class="prepare-checks" aria-label="准备状态">
+      <li data-check="content"><span>内容</span><b>等待</b></li>
+      <li data-check="animation"><span>动画</span><b>等待</b></li>
+      <li data-check="background"><span>背景</span><b>等待</b></li>
+      <li data-check="music"><span>音乐</span><b>等待</b></li>
+    </ul>
+    <button id="prepareSkip" type="button">点击进入</button>
+  </div>
+</div>
+
+<!-- 背景层 -->
+<div class="mood mood-night"></div>
+<div class="mood mood-warm"></div>
+<div class="mood mood-starlight"></div>
+<div class="mood mood-quiet"></div>
+<div class="mood mood-deep"></div>
+<div class="halo halo-a"></div><div class="halo halo-b"></div><div class="halo halo-c"></div>
+<canvas id="dust"></canvas>
+<div class="grain"></div>
+
+<!-- 音乐：准备阶段只检测；进入正文后尝试自动播放，右下角按钮仍可手动控制 -->
+<audio id="bgm" src="music.mp3" loop preload="metadata"></audio>
+<button id="musicBtn" aria-label="播放或暂停音乐">♪</button>
+<div id="musicTip">这里没有音乐文件——把 music.mp3 和这封信放在一起，再点我。</div>
+
+<!-- 底部进度提示 -->
+<nav id="progress" aria-label="章节进度">
+  <div class="p-label" id="pLabel"></div>
+  <div class="p-dots" id="pDots"></div>
+</nav>
+<div id="sceneHint" aria-hidden="true">轻触 / 上滑</div>
+
+<main>
+  <!-- ================= 开场 ================= -->
+  <section id="opening" class="screen" data-mood="night">
+    <div class="first-light" id="firstLight"></div>
+    <div class="open-wrap">
+      <p class="open-line" id="ol1">To：亲爱的小云</p>
+      <p class="open-line" id="ol2">今天发生了好多让你有情绪的事情，希望这能让你开心</p>
+      <p class="open-line" id="ol3">爱你的Tong</p>
+    </div>
+    <button class="scroll-hint" id="scrollHint" aria-label="向下滑动">↓</button>
+  </section>
+
+  <!-- ================= 第一章：小云 ================= -->
+  <section class="chapter" data-ch="0" data-mood="night">
+    <div class="screen">
+      <h2 class="ch-title reveal">「小云」</h2>
+      <div class="gap-s"></div>
+      <p class="say reveal" style="--d:.4s">你说——</p>
+      <div class="seq" id="ch1seq" style="width:100%">
+        <blockquote class="quote reveal" data-reveal="phrase" data-sq="600">“你总是害怕你不够好看。”</blockquote>
+        <div class="gap-m"></div>
+        <p class="reveal shy center" data-reveal="char" data-sq="4200" style="font-size:clamp(19px,5vw,23px)">……笨蛋。</p>
+        <div class="gap-s"></div>
+        <p class="reveal center dim" data-sq="6100">我知道你的美并不是互联网被定义过的美。</p>
+        <div class="gap-s"></div>
+        <p class="reveal center" data-sq="8200">那是只有我可以欣赏的美。嘻嘻。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 第二章：关于见面 ================= -->
+  <section class="chapter" data-ch="1">
+    <div class="screen" data-mood="night">
+      <h2 class="ch-title reveal">「关于见面」</h2>
+      <div class="gap-m"></div>
+      <p class="reveal" data-reveal="phrase" data-reveal-parts="见面的我们|会是什么样子呢？" style="font-size:clamp(20px,5.4vw,26px);letter-spacing:.14em">见面的我们，会是什么样子呢？</p>
+      <div class="gap-s"></div>
+      <p class="reveal dim small" style="--d:.5s">你是不是很好奇呀。我先和你说说，我是怎么想的吧。</p>
+    </div>
+
+    <div class="screen" data-mood="night">
+      <div class="block center">
+        <p class="reveal dim">也许你见过太多太多——<br>因为“不好看”，就不想再和一个人交往下去的例子。</p>
+        <div class="gap-m"></div>
+        <p class="reveal">那么我就要告诉你：我不可能！</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">互联网在定义什么是美，算法在决定什么是美。</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">好像屏幕里，人人都有当明星的外貌。<br>可是不是的呀。好多人，也只是普普通通的。</p>
+        <div class="gap-s"></div>
+        <p class="reveal">而我从来不觉得“普通”有什么难看的。<br><span class="dim">那样想，也太肤浅了。</span></p>
+      </div>
+    </div>
+
+    <!-- 全篇最重要的三句话：每一句独占一屏，背景慢慢变暖 -->
+    <div class="screen" data-mood="night">
+      <p class="trio-line reveal">比起你好不好看——</p>
+    </div>
+    <div class="screen" data-mood="warm">
+      <p class="trio-line trio-key reveal">我更在意，和我在一起，你开不开心呀。</p>
+    </div>
+    <div class="screen" data-mood="warm">
+      <p class="trio-line reveal">我更在意，我们又会在彼此的青春中留下怎样的痕迹。</p>
+    </div>
+
+    <div class="screen" data-mood="warm">
+      <div class="block center">
+        <p class="reveal">所以，小云不用想自己是不是很胖、很不好看啦。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">因为我想看到的，从来不只是照片里的你。</p>
+        <div class="gap-s"></div>
+        <p class="reveal">我想看到的，是真正站在我面前的你。</p>
+        <div class="gap-m"></div>
+        <p class="reveal whisper" style="--d:.3s">而且偷偷告诉你——眼睛看一个人的感觉，比照片里好看一万倍。</p>
+        <div class="gap-s"></div>
+        <p class="reveal whisper">我觉得你超级萌。真的真的。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 第三章：你不用变成别人 ================= -->
+  <section class="chapter" data-ch="2">
+    <div class="screen" data-mood="night" style="min-height:70vh;min-height:70svh">
+      <h2 class="ch-title reveal">「你不用变成别人」</h2>
+      <div class="gap-s"></div>
+      <p class="reveal dim small" style="--d:.4s">如果按照网上的那些标准——</p>
+    </div>
+
+    <!-- 标签风暴：词不断浮现、变快，最后全部淡出，屏幕重新安静 -->
+    <div id="stormBox" data-mood="night">
+      <div class="storm-answer" id="stormAnswer">可是你为什么一定要成为他们？</div>
+    </div>
+
+    <div class="screen" data-mood="night">
+      <div class="block center">
+        <p class="reveal" data-reveal="phrase" data-reveal-parts="我喜欢的是你。" style="font-size:clamp(20px,5.4vw,26px)">我喜欢的是你。</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">不是一个，按照互联网标准打磨出来的你。</p>
+        <div class="gap-m"></div>
+        <p class="reveal glow-v" data-reveal="char" style="font-size:clamp(23px,6vw,30px);letter-spacing:.2em">就是你。</p>
+        <div class="gap-m"></div>
+        <p class="reveal faint small">那些标准里的东西，我不在乎。</p>
+        <div class="gap-s"></div>
+        <p class="reveal whisper small">我只在乎，我有一个爱我的小云。嘻嘻。mua</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 第四章：你已经拥有很多东西 ================= -->
+  <section class="chapter" data-ch="3">
+    <div class="screen" data-mood="night" style="min-height:85vh;min-height:85svh">
+      <h2 class="ch-title reveal">「你已经拥有很多东西」<span class="chapter-aside">而且你看</span></h2>
+      <div class="gap-m"></div>
+      <p class="reveal dim small" style="--d:.3s">你看，这些都在你身上——</p>
+      <div class="gap-s"></div>
+      <div class="paper reveal" style="--d:.5s">
+        <div class="words">
+          <span class="w reveal" style="--d:.7s">画画</span>
+          <span class="w reveal" style="--d:1s">播音</span>
+          <span class="w reveal" style="--d:1.3s">好奇心</span>
+          <span class="w reveal" style="--d:1.6s">努力过</span>
+          <span class="w reveal" style="--d:1.9s">认真过</span>
+          <span class="w reveal" style="--d:2.2s">学过</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" data-mood="night">
+      <div class="block center">
+        <p class="reveal dim small">一个人聪不聪明，我看一眼就知道。小云还是相当聪明的呀。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">你总是喜欢用结果证明自己。</p>
+        <div class="gap-s"></div>
+        <p class="reveal result-words faint">
+          <span class="will-dim">成绩。</span><span class="will-dim">排名。</span><span class="will-dim">别人眼里的“厉害”。</span>
+        </p>
+        <div class="gap-l"></div>
+        <p class="reveal">可是你忘记了一件事情。</p>
+        <div class="gap-m"></div>
+        <p class="reveal" style="font-size:clamp(19px,5vw,24px)">你曾经认真学过的东西，<br>本身就是你的。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">那些时间没有消失。</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">那些努力没有白费。</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">那些你以为毫无意义的经历，早就变成了你的一部分。</p>
+        <div class="gap-l"></div>
+        <p class="reveal">所以，不要因为没有拿到一个漂亮的数字，<br>就把过去的自己，全部否定掉。</p>
+        <div class="gap-m"></div>
+        <p class="reveal whisper small">我觉得你超级厉害。会好多我不会的东西。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 第五章：那些所谓的差异 ================= -->
+  <section class="chapter" data-ch="4">
+    <div class="screen" data-mood="night">
+      <h2 class="ch-title reveal">「那些所谓的差异」</h2>
+      <div class="gap-m"></div>
+      <p class="reveal" style="font-size:clamp(19px,5vw,23px)">笨蛋啦。</p>
+      <div class="gap-s"></div>
+      <p class="reveal dim">你总是在想这些干什么。</p>
+    </div>
+
+    <!-- 视觉中心：我喜欢你不就好啦。背景出现微弱星光 -->
+    <div class="screen" data-mood="starlight">
+      <p class="big-line highlight-line reveal" data-reveal="phrase">我喜欢你不就好啦。</p>
+    </div>
+
+    <div class="screen" data-mood="starlight">
+      <div class="block center">
+        <p class="reveal">那些其他的，全部都是<span class="wobble">杂鱼</span>。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">不对。</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">还有一个，和这个一样重要的。</p>
+        <div class="gap-m"></div>
+        <p class="reveal" data-reveal="phrase" data-reveal-parts="就是——|你也喜欢我。" style="font-size:clamp(20px,5.4vw,26px)">就是——你也喜欢我。</p>
+        <div class="gap-s"></div>
+        <!-- 两个小光点从两侧慢慢靠近，停在一起 -->
+        <div class="duo reveal" id="duoCh5"><span class="d da"></span><span class="d db"></span></div>
+      </div>
+    </div>
+
+    <!-- 关于“把自己暴露出来”：这一段越安静越好 -->
+    <div class="screen" data-mood="quiet">
+      <div class="block center">
+        <p class="reveal dim">你愿意写下这些文字，</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">无异于把自己体无完肤地，暴露在别人之下。</p>
+        <div class="gap-l"></div>
+        <p class="reveal">我真的觉得，这很难得。</p>
+        <div class="gap-s"></div>
+        <p class="reveal dim">因为我知道，把很重要的东西交到另一个人手里，需要很大的勇气。</p>
+      </div>
+    </div>
+    <div class="screen" data-mood="quiet">
+      <div class="block center">
+        <p class="reveal">你把很重要很重要的东西，托付给了我。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">谢谢你愿意相信我。</p>
+        <div class="gap-m"></div>
+        <p class="reveal" style="letter-spacing:.2em">真的真的，谢谢你。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 第六章：一个小小的愿望 ================= -->
+  <section class="chapter" data-ch="5">
+    <div class="screen" data-mood="deep">
+      <p class="tiny reveal">「一个小小的愿望」</p>
+      <div class="gap-m"></div>
+      <p class="reveal dim">最后……</p>
+      <div class="gap-s"></div>
+      <p class="reveal">我想许一个愿。</p>
+    </div>
+    <div class="screen" data-mood="deep">
+      <div class="block center">
+        <p class="reveal dim">不求我们永远快乐。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">也不求我们永远不会吵架。</p>
+        <div class="gap-m"></div>
+        <p class="reveal dim">更不求我们，永远都是现在的样子。</p>
+      </div>
+    </div>
+    <div class="screen" data-mood="deep">
+      <p class="reveal" data-reveal="line">我只想许愿——</p>
+    </div>
+    <div class="screen" data-mood="deep">
+      <p class="wish reveal" data-reveal="line">希望我们成为那个，<br>不会轻易分开的人。</p>
+      <div class="gap-s"></div>
+      <p class="wish-sign reveal" style="--d:1s">小同的愿望</p>
+    </div>
+
+    <!-- 结尾互动 -->
+    <div class="screen" data-mood="deep" id="ending">
+      <p class="reveal faint small">如果你看到了这里——</p>
+      <div class="choices reveal" id="choices" style="--d:.5s">
+        <button class="choice-btn" data-ans="a">我收到了。</button>
+        <button class="choice-btn" data-ans="b">我也选这个愿望</button>
+      </div>
+
+      <!-- 回答 A：我收到了。 -->
+      <div class="answer block center" id="ansA">
+        <p class="reveal glow-v" data-reveal="phrase" data-sq="600" style="font-size:clamp(19px,5vw,23px)">为啥不选另外一个！！！</p>
+        <div class="gap-s"></div>
+      </div>
+
+      <!-- 回答 B：我也选这个愿望 -->
+      <div class="answer block center" id="ansB">
+        <div class="duo" id="duoEnd"><span class="d da"></span><span class="d db"></span><span class="starlet"></span></div>
+        <p class="reveal glow-v love-line" data-reveal="phrase" data-sq="6800">我爱你꒰ᐢ⸝⸝• ·̭ •⸝⸝ᐢ꒱</p>
+        <div class="gap-s"></div>
+        <p class="reveal tiny" data-sq="8600">2026 · 一个特别的下晚自习的夜晚</p>
+      </div>
+
+      <button class="again" id="againBtn">给回去选</button>
+    </div>
+    <div class="gap-m"></div>
+  </section>
+</main>
+
+<script>
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ================= 星尘画布：可见时运行、低性能设备自动降级 ================= */
+(()=>{
+  const cv=$('#dust'),ctx=cv&&cv.getContext('2d');
+  if(!cv||!ctx){window.__dustReady=true;window.dispatchEvent(new Event('dust-ready'));return}
+  let W=0,H=0,ps=[],raf=0,t=0,running=false,last=0;
+  const TINTS=['245,241,255','245,241,255','245,241,255','139,124,255','233,184,213','243,210,155'];
+  function resize(){
+    const dpr=Math.min(devicePixelRatio||1,innerWidth<600?1.5:2);
+    W=innerWidth;H=innerHeight;cv.width=Math.max(1,W*dpr);cv.height=Math.max(1,H*dpr);cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
+    const cores=navigator.hardwareConcurrency||4;
+    const cap=cores<=2?30:innerWidth<600?48:64;
+    const n=Math.min(cap,Math.max(18,Math.round(W*H/(innerWidth<600?30000:26000))));
+    ps=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,r:.45+Math.random()*1.15,vy:-(1.5+Math.random()*3.5)/60,vx:(Math.random()-.5)*.05,c:TINTS[Math.random()*TINTS.length|0],a:.12+Math.random()*.4,ph:Math.random()*6.28,sp:.15+Math.random()*.35}));
+  }
+  function frame(now){
+    if(!running)return;
+    const delta=Math.min(48,last?now-last:16.7);last=now;t+=delta/1000;ctx.clearRect(0,0,W,H);
+    for(const p of ps){p.y+=p.vy*delta/16.7;p.x+=p.vx*delta/16.7;if(p.y<-4){p.y=H+4;p.x=Math.random()*W}if(p.x<-4)p.x=W+4;if(p.x>W+4)p.x=-4;const a=p.a*(.55+.45*Math.sin(t*p.sp*2+p.ph));ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.283);ctx.fillStyle=`rgba(${p.c},${a})`;ctx.fill()}
+    raf=requestAnimationFrame(frame);
+  }
+  function start(){if(reduced||running||document.visibilityState!=='visible')return;running=true;last=0;raf=requestAnimationFrame(frame)}
+  function stop(){running=false;if(raf)cancelAnimationFrame(raf);raf=0}
+  resize();addEventListener('resize',resize,{passive:true});document.addEventListener('visibilitychange',()=>document.visibilityState==='visible'?start():stop());
+  window.__dustReady=true;window.dispatchEvent(new Event('dust-ready'));start();
+})();
+
+/* ================= Scene 构建：保留正文，只重新编排现有 .screen ================= */
+const MOTION={enter:1080,exit:780,settle:140,pieceStep:430,firstPiece:260,arrivalPause:260,fastExit:220,fastSettle:40};
+const CHAPTERS=['小云','关于见面','你不用变成别人','你已经拥有很多东西','那些所谓的差异','一个小小的愿望'];
+const chapterEls=$$('.chapter'),opening=$('#opening');
+const state={chapterIndex:-1,sceneIndex:0,isTransitioning:false,sceneComplete:false,musicStarted:false,transitionTarget:null};
+let scenes=[],chapterFirstScene=[];
+function revealCount(node){return node.nodeType===1?((node.matches('.reveal')?1:0)+node.querySelectorAll('.reveal').length):0}
+function runSeq(box){
+  if(!box||box.dataset.done)return;
+  box.dataset.done='1';
+  box.querySelectorAll('[data-sq]').forEach((el,index)=>setTimeout(()=>el.classList.add('in'),reduced?100:Math.min(parseInt(el.dataset.sq,10)||index*420,3600)));
+}
+function splitReveal(el){
+  if(el.dataset.partsReady||el.children.length&&!el.querySelector('br'))return;
+  const mode=el.dataset.reveal||((el.classList.contains('wish')||el.classList.contains('glow-v')||el.classList.contains('ch-title'))?'phrase':'');
+  if(!mode)return;
+  const hasBreak=!!el.querySelector('br'),text=el.textContent.trim();if(!text||text.length<3)return;
+  let parts=(el.dataset.revealParts||'').split('|').map(v=>v.trim()).filter(Boolean);
+  if(hasBreak&&!parts.length)parts=el.innerHTML.split(/<br\s*\/?\s*>/i).map(v=>v.replace(/<[^>]+>/g,'').trim()).filter(Boolean);
+  if(!parts.length){
+    if(mode==='char')parts=Array.from(text);
+    else if(mode==='line')parts=text.split(/[\n，。！？；：——]+/).filter(Boolean);
+    else parts=text.match(/[^，。！？；：——]+[，。！？；：——]?/g)||[text];
+  }
+  if(mode==='phrase'&&parts.length===1&&text.length>7){const cut=Math.ceil(text.length/2);parts=[text.slice(0,cut),text.slice(cut)]}
+  const frag=document.createDocumentFragment();
+  parts.forEach((part,index)=>{const span=document.createElement('span');span.className='reveal-part';span.textContent=part;span.style.setProperty('--part-delay',`${Math.min(index*115,900)}ms`);frag.appendChild(span);if(hasBreak&&index<parts.length-1)frag.appendChild(document.createElement('br'))});
+  el.textContent='';el.appendChild(frag);el.dataset.partsReady='1';el.classList.add('has-parts');
+}
+function makeSceneShell(source,mood){
+  const shell=document.createElement('div');shell.className=(source.className||'screen')+' scene';shell.style.cssText=source.style.cssText||'';shell.dataset.mood=mood||'night';return shell;
+}
+function buildScenes(){
+  opening.classList.add('scene');opening.dataset.mood=opening.dataset.mood||'night';
+  chapterEls.forEach((chapter,chapterIndex)=>{
+    chapterFirstScene[chapterIndex]=null;
+    let mood=chapter.dataset.mood||'night';
+    const screens=[...chapter.children].filter(el=>el.classList&&el.classList.contains('screen'));
+    screens.forEach(source=>{
+      if(source.dataset.mood)mood=source.dataset.mood;
+      const block=[...source.children].find(el=>el.classList&&el.classList.contains('block'));
+      const count=source.querySelectorAll('.reveal').length;
+      const special=source.id==='ending'||source.querySelector('#stormBox,.choices,.answer,.paper,.duo');
+      const shouldSplit=!!block&&count>4&&!special;
+      if(!shouldSplit){source.classList.add('scene');source.dataset.mood=source.dataset.mood||mood;return}
+      const nodes=[...block.childNodes],groups=[],group=[];let groupCount=0;
+      for(const node of nodes){const n=revealCount(node);if(group.length&&groupCount>=3&&n>0){groups.push(group.splice(0));groupCount=0}group.push(node);groupCount+=n}
+      if(group.length)groups.push(group.splice(0));
+      /*
+         只把真正包含正文的分组变成 Scene，并复制节点而不是把原节点搬走。
+         这样拆分页不会生成“空壳页”，也不会因为后续初始化移动了原节点而丢字。
+      */
+      const replacement=groups
+        .filter(items=>items.some(node=>revealCount(node)>0 || (node.nodeType===3 && node.textContent.trim())))
+        .map((items,index)=>{
+          const shell=makeSceneShell(source,mood);
+          const inner=block.cloneNode(false);
+          items.forEach(node=>inner.appendChild(node.cloneNode(true)));
+          shell.appendChild(inner);
+          shell.dataset.fragment=String(index+1);
+          return shell;
+        });
+      if(replacement.length)source.replaceWith(...replacement);
+      else{source.classList.add('scene');source.dataset.mood=source.dataset.mood||mood}
+    });
+    // 标签风暴原本是章节中的独立内容节点；在 Scene 模式下把它本身变成一页，
+    // 这样它既保留原有 DOM / 动画，也不会被固定舞台的章节容器挤出阅读顺序。
+    const storm=[...chapter.children].find(el=>el.id==='stormBox');
+    if(storm){storm.classList.add('scene');storm.dataset.mood=storm.dataset.mood||mood;storm.dataset.hold='storm'}
+    const chapterScenes=[...chapter.children].filter(el=>el.classList&&el.classList.contains('scene'));
+  });
+  scenes=[opening,...chapterEls.flatMap(ch=>[...ch.children].filter(el=>el.classList&&el.classList.contains('scene')))];
+  scenes.forEach((scene,index)=>{
+    scene.dataset.sceneIndex=String(index);scene.dataset.sceneState='idle';scene.dataset.position=['center','high','center','low'][index%4];
+    scene.classList.add('position-'+scene.dataset.position);
+    if(scene.closest('.chapter')){const ch=scene.closest('.chapter');scene.dataset.chapter=ch.dataset.ch;scene.dataset.mood=scene.dataset.mood||ch.dataset.mood||'night'}
+    if(scene.querySelector('#stormBox'))scene.dataset.hold='storm';
+    if(scene.id==='ending')scene.dataset.hold='ending';
+    const pieces=[...scene.querySelectorAll('.reveal')].filter(el=>!el.closest('.answer'));
+    pieces.forEach((el,i)=>{el.classList.add('scene-piece');el.style.setProperty('--scene-delay',`${Math.min(MOTION.firstPiece+i*MOTION.pieceStep,2500)}ms`)});
+    scene._timers=[];scene._visited=false;
+    if(scene.closest('.chapter')){
+      const chIndex=+scene.closest('.chapter').dataset.ch;scene.dataset.chapter=String(chIndex);
+      if(chapterFirstScene[chIndex]===0||chapterFirstScene[chIndex]===null)chapterFirstScene[chIndex]=index;
+    }
+  });
+}
+$$('.reveal').forEach(splitReveal);
+buildScenes();
+function clearSceneTimers(scene){(scene._timers||[]).forEach(clearTimeout);scene._timers=[]}
+function addIn(el){if(el)el.classList.add('in')}
+function cancelSceneAnimations(scene){
+  if(!scene)return;
+  scene.querySelectorAll('.scene-piece,.scene-piece *').forEach(el=>{
+    if(el.getAnimations)el.getAnimations().forEach(animation=>animation.cancel());
+  });
+}
+function showCompletedScene(scene){
+  if(!scene)return;
+  cancelSceneAnimations(scene);
+  scene.classList.add('scene-fast-forward','scene-restored');
+  scenePieces(scene).forEach(addIn);
+}
+function scenePieces(scene){return [...scene.querySelectorAll('.scene-piece')].filter(el=>!el.closest('.answer'))}
+function markSceneComplete(scene){if(scene.dataset.sceneState==='completed')return;scene.dataset.sceneState='completed';if(scene===scenes[state.sceneIndex])state.sceneComplete=true}
+function completeScene(scene){
+  clearSceneTimers(scene);
+  /* 快进状态会覆盖原正文里遗留的 --d / data-sq 延迟，避免用户点按后看到空白页。 */
+  showCompletedScene(scene);
+  if(scene.id==='opening'){addIn($('#firstLight'));scene.querySelectorAll('.open-line').forEach(addIn);addIn($('#scrollHint'))}
+  if(scene.dataset.hold==='storm'&&window.completeStormScene)window.completeStormScene();
+  markSceneComplete(scene);
+}
+function updateChapterProgress(scene){
+  const dots=$$('.p-dot'),label=$('#pLabel'),ch=scene.closest('.chapter');
+  if(!ch){label.textContent='';dots.forEach(d=>d.classList.remove('active'));return}
+  const index=+ch.dataset.ch;state.chapterIndex=index;dots.forEach((d,i)=>d.classList.toggle('active',i===index));label.textContent='「'+CHAPTERS[index]+'」';
+}
+function activateSceneParent(scene){chapterEls.forEach(ch=>ch.classList.toggle('chapter-active',ch.contains(scene)));document.body.dataset.mood=scene.dataset.mood||'night';updateChapterProgress(scene)}
+function scheduleScene(scene,fast=false){
+  clearSceneTimers(scene);
+  scene.classList.remove('scene-fast-forward','scene-restored');
+  scene.dataset.sceneState='entering';scene._visited=true;
+  if(scene===opening){
+    scene._timers.push(setTimeout(()=>addIn($('#firstLight')),320));
+    scene._timers.push(setTimeout(()=>addIn($('#ol1')),950));scene._timers.push(setTimeout(()=>addIn($('#ol2')),1780));scene._timers.push(setTimeout(()=>addIn($('#ol3')),2700));scene._timers.push(setTimeout(()=>addIn($('#scrollHint')),3500));
+    scene._timers.push(setTimeout(()=>markSceneComplete(scene),3700));return;
+  }
+  if(scene.dataset.hold==='storm'&&window.startStormScene){
+    /* 标签风暴页的正文不在 .scene-piece 里。先让答案可见，再播放标签，
+       这样进入第二页时不会出现整页空白；点按仍可立即完成并翻页。 */
+    addIn(scene.querySelector('.storm-answer'));
+    scene._timers.push(setTimeout(()=>window.startStormScene(()=>markSceneComplete(scene)),reduced?40:160));
+    return;
+  }
+  const pieces=scenePieces(scene);
+  /*
+     进入页先显示第一段，再安排后续时序；否则在转场完成后仍可能看到一整屏空白。
+     特殊页（如标签风暴）没有 scene-piece，交给自己的 hold 逻辑处理。
+  */
+  const startDelay=fast||reduced?0:MOTION.arrivalPause;
+  if(pieces.length){
+    scene._timers.push(setTimeout(()=>addIn(pieces[0]),startDelay));
+    /* 正常翻页给新页面一个短暂停顿；连续滑动时 fast=true，立即跟上下一页。 */
+    pieces.slice(1).forEach((piece,index)=>scene._timers.push(setTimeout(()=>addIn(piece),startDelay+(reduced?40:Math.min(80+index*150,700)))));
+  }
+  const finalDelay=startDelay+(reduced?120:Math.min(120+Math.max(0,pieces.length-1)*150+450,1200));
+  scene._timers.push(setTimeout(()=>markSceneComplete(scene),finalDelay));
+}
+function enterScene(scene,direction,instant=false){
+  activateSceneParent(scene);scene.classList.add('scene-live');
+  scene.classList.remove('scene-exit-next','scene-exit-prev','scene-from-above','scene-from-below');
+  if(instant){
+    scene.classList.add('scene-current');
+  }else{
+    scene.classList.add(direction==='prev'?'scene-from-above':'scene-from-below');
+    requestAnimationFrame(()=>{scene.classList.add('scene-current');scene.classList.remove('scene-from-above','scene-from-below')});
+  }
+  if(scene.dataset.sceneState==='completed'){
+    showCompletedScene(scene);
+    if(scene===opening){addIn($('#firstLight'));scene.querySelectorAll('.open-line').forEach(addIn);addIn($('#scrollHint'))}
+  }else scheduleScene(scene);
+}
+/*
+   翻页请求不能因为动画尚未结束就直接丢掉。移动端一次轻触经常会在
+   上一段转场的收尾阶段到达；旧逻辑直接 return，结果就是当前页已经
+   消失，下一页却永远没有收到进入请求。这里保留原本“第一次点按先
+   收束本页、下一次再翻页”的阅读节奏，但把转场期间的请求排队，按
+   顺序消费，保证每一次有效点按都有结果；正文未完成时会先收束并继续翻页。
+*/
+let sceneMoveQueue=[],sceneTargetQueue=null;
+function consumeSceneMoveQueue(){
+  if(state.isTransitioning)return;
+  if(sceneTargetQueue!==null){
+    const target=sceneTargetQueue;sceneTargetQueue=null;requestSceneNavigation(target);return;
+  }
+  if(!sceneMoveQueue.length)return;
+  const direction=sceneMoveQueue.shift();
+  requestSceneMove(direction);
+}
+function jumpToScene(nextIndex,direction){
+  if(nextIndex<0||nextIndex>=scenes.length)return false;
+  sceneMoveQueue=[];state.isTransitioning=false;state.transitionTarget=null;
+  scenes.forEach(scene=>{
+    clearSceneTimers(scene);
+    scene.classList.remove('scene-live','scene-current','scene-exit-next','scene-exit-prev','scene-from-above','scene-from-below');
+    scene.style.removeProperty('transition-duration');
+  });
+  state.sceneIndex=nextIndex;state.sceneComplete=false;
+  enterScene(scenes[nextIndex],direction,true);
+  return true;
+}
+
+function transitionTo(nextIndex,direction){
+  if(state.isTransitioning||nextIndex<0||nextIndex>=scenes.length)return false;
+  const from=scenes[state.sceneIndex],to=scenes[nextIndex];if(from===to)return false;
+  state.isTransitioning=true;state.sceneComplete=false;state.transitionTarget=nextIndex;
+  const fast=sceneMoveQueue.length>0;
+  const exitMs=fast||reduced?MOTION.fastExit:MOTION.exit;
+  const settleMs=fast||reduced?MOTION.fastSettle:MOTION.settle;
+  clearSceneTimers(from);from.classList.remove('scene-current');from.classList.add('scene-exit-'+(direction==='prev'?'prev':'next'));
+  to.classList.add('scene-live',direction==='prev'?'scene-from-above':'scene-from-below');activateSceneParent(to);
+  /* 普通翻页先短暂停一下；连续滑动时跳过等待，优先保证翻页响应。 */
+  if(to.dataset.sceneState==='completed')showCompletedScene(to);else scheduleScene(to,fast);
+  if(fast){to.style.transitionDuration='220ms';from.style.transitionDuration='220ms'}
+  requestAnimationFrame(()=>{to.classList.add('scene-current');to.classList.remove('scene-from-above','scene-from-below')});
+  setTimeout(()=>{
+    from.classList.remove('scene-live','scene-exit-next','scene-exit-prev');
+    from.style.removeProperty('transition-duration');to.style.removeProperty('transition-duration');
+    state.sceneIndex=nextIndex;state.sceneComplete=to.dataset.sceneState==='completed';state.transitionTarget=null;
+    setTimeout(()=>{state.isTransitioning=false;consumeSceneMoveQueue()},settleMs);
+  },exitMs+settleMs);
+  return true;
+}
+function requestSceneMove(direction){
+  if(state.isTransitioning){
+    /* 第二次连续滑动直接跳到下一页，不等待上一页的动画加载；单次滑动仍保留短暂停顿。 */
+    if(sceneMoveQueue.length>=1){
+      const base=Number.isInteger(state.transitionTarget)?state.transitionTarget:state.sceneIndex;
+      const target=base+(direction==='next'?1:-1);
+      return jumpToScene(target,direction);
+    }
+    sceneMoveQueue.push(direction);
+    return false;
+  }
+  const current=scenes[state.sceneIndex];
+  if(direction==='next'&&current.dataset.hold==='ending')return false;
+  /* 一次点按就是一次翻页动作：若正文还在入场，先把它收束为完整状态，
+     然后继续进入下一页；不再要求用户对同一页点两次。 */
+  if(current.dataset.sceneState!=='completed')completeScene(current);
+  return transitionTo(state.sceneIndex+(direction==='next'?1:-1),direction);
+}
+function requestSceneNavigation(targetIndex){
+  if(typeof targetIndex!=='number'||targetIndex<0||targetIndex>=scenes.length)return false;
+  if(state.isTransitioning){
+    /* 导航点按也不能在转场期间失效；章节目标优先于普通的滑动队列。 */
+    sceneTargetQueue=targetIndex;sceneMoveQueue=[];return false;
+  }
+  const current=scenes[state.sceneIndex];
+  if(targetIndex===state.sceneIndex){completeScene(current);return true}
+  if(current.dataset.sceneState!=='completed')completeScene(current);
+  return transitionTo(targetIndex,state.sceneIndex<targetIndex?'next':'prev');
+}
+function goToNextScene(){return requestSceneMove('next')}
+function goToPreviousScene(){return requestSceneMove('prev')}
+function startFirstScene(){document.body.classList.add('scene-mode');scenes.forEach(s=>s.classList.remove('scene-live','scene-current','scene-exit-next','scene-exit-prev'));state.sceneIndex=0;state.sceneComplete=false;enterScene(scenes[0],'next');document.body.classList.add('scene-hint-visible');setTimeout(()=>document.body.classList.remove('scene-hint-visible'),3200);if(window.tryStartMusic)window.tryStartMusic()}
+const main=$('main');let touchStart=null,touchTarget=null,suppressTapUntil=0;
+main.addEventListener('click',e=>{if(performance.now()<suppressTapUntil||e.target.closest('button,a,input,[data-no-advance]'))return;goToNextScene()});
+main.addEventListener('touchstart',e=>{if(e.target.closest('button,a,input,[data-no-advance]')){touchTarget=true;return}touchTarget=false;const t=e.changedTouches[0];touchStart={x:t.clientX,y:t.clientY}}, {passive:true});
+main.addEventListener('touchmove',e=>{if(touchStart)e.preventDefault()},{passive:false});
+main.addEventListener('touchend',e=>{if(!touchStart||touchTarget){touchStart=null;touchTarget=null;return}const t=e.changedTouches[0],dy=t.clientY-touchStart.y;touchStart=null;touchTarget=null;if(Math.abs(dy)<38)return;suppressTapUntil=performance.now()+700;if(dy<0)goToNextScene();else goToPreviousScene()},{passive:false});
+let wheelLock=false;addEventListener('wheel',e=>{if(!document.body.classList.contains('scene-mode')||wheelLock||Math.abs(e.deltaY)<18)return;wheelLock=true;e.deltaY>0?goToNextScene():goToPreviousScene();setTimeout(()=>wheelLock=false,1000)},{passive:true});
+const dotsBox=$('#pDots'),label=$('#pLabel');CHAPTERS.forEach((t,i)=>{
+  const b=document.createElement('button');b.className='p-dot';b.setAttribute('aria-label',t);
+  b.onclick=()=>{
+    const first=chapterFirstScene[i];
+    if(typeof first!=='number')return;
+    requestSceneNavigation(first);
+  };
+  dotsBox.appendChild(b);
+});
+$('#scrollHint').onclick=goToNextScene;
+
+/* ================= 准备层：真实状态，不伪造百分比 ================= */
+(()=>{
+  const prepare=$('#prepare'),percent=$('#preparePercent'),bar=$('#prepareBar'),skip=$('#prepareSkip'),bgm=$('#bgm');
+  const rows={content:document.querySelector('[data-check="content"]'),animation:document.querySelector('[data-check="animation"]'),background:document.querySelector('[data-check="background"]'),music:document.querySelector('[data-check="music"]')};
+  let current=0,entered=false;
+  const setRow=(key,state,labelText)=>{const row=rows[key];if(!row)return;row.classList.toggle('done',state==='done');row.classList.toggle('optional',state==='optional');row.querySelector('b').textContent=labelText||(state==='done'?'✓':state==='optional'?'—':'…')};
+  const setProgress=(value)=>{current=Math.max(current,value);percent.textContent=Math.round(current)+'%';bar.style.width=current+'%'};
+  const waitForDust=()=>new Promise(resolve=>{if(window.__dustReady){resolve();return}const done=()=>{window.__dustReady=true;resolve()};addEventListener('dust-ready',done,{once:true});setTimeout(done,900)});
+  const checkMusic=()=>new Promise(resolve=>{
+    let settled=false;const finish=ok=>{if(settled)return;settled=true;cleanup();resolve(ok)};
+    const cleanup=()=>{bgm.removeEventListener('loadedmetadata',onReady);bgm.removeEventListener('canplay',onReady);bgm.removeEventListener('error',onError)};
+    const onReady=()=>finish(true),onError=()=>finish(false);bgm.addEventListener('loadedmetadata',onReady);bgm.addEventListener('canplay',onReady);bgm.addEventListener('error',onError);bgm.load();
+    setTimeout(()=>finish(bgm.readyState>0),1800);
+  });
+  async function enter(){if(entered)return;entered=true;setProgress(100);setRow('content','done','✓');setRow('animation','done','✓');setRow('background','done','✓');if(rows.music.classList.contains('optional'))setRow('music','optional','—');await wait(reduced?120:420);prepare.classList.add('ready');document.body.classList.remove('preparing');document.body.classList.add('started');startFirstScene()}
+  skip.onclick=enter;
+  setTimeout(()=>skip.classList.add('visible'),6500);
+  (async()=>{
+    setRow('content','done','✓');setProgress(20);
+    await waitForDust();setRow('animation','done','✓');setProgress(45);
+    await wait(80);setRow('background','done','✓');setProgress(70);
+    const musicOK=await checkMusic();setRow('music',musicOK?'done':'optional',musicOK?'已准备':'未找到');setProgress(90);
+    await wait(reduced?100:420);await enter();
+  })();
+})();
+
+/* ================= 第三章：标签风暴：由 Scene 进入/完成状态驱动 ================= */
+(()=>{
+  const box=$('#stormBox'),ans=$('#stormAnswer');if(!box)return;const WORDS=['身高','脸型','发型','颜值','白幼瘦','少女感','初恋脸'];let started=false,timers=[],finishCallback=null;
+  function spawn(){const s=document.createElement('span');s.className='tag'+(Math.random()<.3?' v':'')+(Math.random()<.25?' j':'');s.textContent=WORDS[Math.random()*WORDS.length|0];s.style.left=(8+Math.random()*72)+'%';s.style.top=(12+Math.random()*70)+'%';s.style.fontSize=(13+Math.random()*9)+'px';box.appendChild(s);timers.push(setTimeout(()=>s.remove(),2900))}
+  function finish(){box.querySelectorAll('.tag').forEach(t=>{t.style.animation='none';t.style.transition='opacity 900ms ease';requestAnimationFrame(()=>t.style.opacity='0');timers.push(setTimeout(()=>t.remove(),1100))});ans.classList.add('in');const cb=finishCallback;finishCallback=null;if(cb)cb()}
+  function start(done){if(started){if(done)finishCallback=done;return}started=true;finishCallback=done;let interval=760,total=0;const tick=()=>{spawn();total+=interval;interval=Math.max(260,interval*.82);if(total<3400&&!reduced)timers.push(setTimeout(tick,interval));else timers.push(setTimeout(finish,reduced?420:900))};tick()}
+  function complete(){if(!started){started=true}timers.forEach(clearTimeout);timers=[];finish()}
+  window.startStormScene=start;window.completeStormScene=complete;
+})();
+
+/* ================= 结尾互动 ================= */
+(()=>{
+  const choices=$('#choices'),ansA=$('#ansA'),ansB=$('#ansB'),again=$('#againBtn');
+  function reset(){
+    ansA.classList.remove('show');ansB.classList.remove('show');
+    [ansA,ansB].forEach(a=>{
+      a.querySelectorAll('.in').forEach(el=>el.classList.remove('in'));
+      delete a.dataset.done;
+    });
+    $('#duoEnd').classList.remove('in','merge');
+    again.classList.remove('in');
+    choices.style.display='';
+    requestAnimationFrame(()=>choices.classList.remove('gone'));
+  }
+  async function choose(w){
+    choices.classList.add('gone');
+    await wait(reduced?200:1150);
+    choices.style.display='none';
+    if(w==='a'){
+      ansA.classList.add('show');runSeq(ansA);
+      setTimeout(()=>again.classList.add('in'),reduced?1500:9200);
+    }else{
+      ansB.classList.add('show');
+      const duo=$('#duoEnd');
+      requestAnimationFrame(()=>duo.classList.add('in'));              // 两束光慢慢靠近
+      setTimeout(()=>duo.classList.add('merge'),reduced?800:5200);     // 合成一颗很小的星星
+      runSeq(ansB);
+      setTimeout(()=>again.classList.add('in'),reduced?1500:11000);
+    }
+  }
+  choices.addEventListener('click',e=>{
+    const b=e.target.closest('.choice-btn');
+    if(b)choose(b.dataset.ans);
+  });
+  again.onclick=reset;
+})();
+
+/* ================= 音乐：进入 Scene 后尝试自动播放，首次只淡入一次 ================= */
+(()=>{
+  const bgm=$('#bgm'),btn=$('#musicBtn'),tip=$('#musicTip');const MUSIC_TARGET_VOLUME=.45,MUSIC_FADE_MS=5000;let ok=true,fadeStarted=false,playingOnce=false,userPaused=false,startPending=false,tipTimer;
+  bgm.volume=0;
+  function showTip(msg){if(msg)tip.textContent=msg;tip.classList.add('show');clearTimeout(tipTimer);tipTimer=setTimeout(()=>tip.classList.remove('show'),3200)}
+  function fadeIn(){if(fadeStarted)return;fadeStarted=true;const started=performance.now();const step=now=>{const p=Math.min(1,(now-started)/MUSIC_FADE_MS);const eased=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;bgm.volume=Math.min(MUSIC_TARGET_VOLUME,eased*MUSIC_TARGET_VOLUME);if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
+  async function tryStartMusic(fromGesture=false){
+    if(!ok||userPaused||!bgm.paused||startPending)return false;
+    startPending=true;
+    try{await bgm.play();playingOnce=true;fadeIn();return true}catch(_){if(fromGesture){}return false}finally{startPending=false}
+  }
+  window.tryStartMusic=()=>tryStartMusic(false);
+  const gesture=e=>{if(e&&e.target&&e.target.closest&&e.target.closest('button,a,input,[data-no-advance]'))return;if(document.body.classList.contains('scene-mode'))tryStartMusic(true)};
+  ['pointerdown','touchend','wheel'].forEach(type=>addEventListener(type,gesture,{once:false,passive:true}));
+  bgm.addEventListener('error',()=>{ok=false});bgm.addEventListener('pause',()=>{btn.classList.remove('playing');if(playingOnce)userPaused=true});bgm.addEventListener('play',()=>{btn.classList.add('playing');userPaused=false});
+  btn.onclick=async()=>{if(!ok){showTip('这里没有音乐文件——把 music.mp3 和这封信放在一起，再点我。');return}if(bgm.paused){userPaused=false;await tryStartMusic(true)}else{userPaused=true;bgm.pause()}};
+})();
+</script>
+</body>
+</html>
+
+
